@@ -1,14 +1,21 @@
 #!/bin/env bash
 
-# Settings
+# --- Settings ---
+HOME=/root
 NUM_USERS=4
 TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
-
-# Install system-level software
+# --- Install system-level software ---
 dnf update -y
-dnf install -y git nodejs npm shadow-utils wget rsync
+dnf install -y python3-pip git nodejs npm shadow-utils wget rsync
+dnf remove -y nodejs  # Remove Node 16
+curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+dnf install -y nodejs
 
-# Create users
+# --- Install JupyterHub and notebook server ---
+python3 -m pip install jupyterhub notebook jupyterlab ipykernel
+npm install -g configurable-http-proxy
+
+# --- Create users ---
 usernames=()
 for unum in $(seq -w 1 "${NUM_USERS}"); do
     user="user${unum}"
@@ -18,22 +25,31 @@ for unum in $(seq -w 1 "${NUM_USERS}"); do
     usernames+=("${user}")
 done
 
-# Download miniconda installer and install for each user
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /opt/miniconda_installer.sh
-chmod u+x /opt/miniconda_installer.sh
-/opt/miniconda_installer.sh -b -p /opt/miniconda-ref
-echo "export CONDA_ACCEPT_LICENSES=true" >> "$HOME/.bashrc"
-echo "eval \"\$(/opt/miniconda-ref/bin/conda shell.bash hook)\"" >> "$HOME/.bashrc"
-source "$HOME/.bashrc"
-conda init --all
-conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
-conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
-source "$HOME/.bashrc"
-conda create -n geoips -c conda-forge python=3.11 -y
-conda activate geoips
-pip install --upgrade pip
-pip install geoips geoips_clavrx
+# --- Download and install miniconda in /opt/miniconda-ref ---
+# This section runs in a subshell to avoid polluting the root environment
+# with conda variables and paths. When done, the environment will revert
+# to its original state.
+#
+# Later, the resulting conda installation will be copied to each user's home directory.
+(
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /opt/miniconda_installer.sh
+    chmod u+x /opt/miniconda_installer.sh
+    /opt/miniconda_installer.sh -b -p /opt/miniconda-ref
+    echo "export CONDA_ACCEPT_LICENSES=true" >> "$HOME/conda_bashrc"
+    echo "eval \"\$(/opt/miniconda-ref/bin/conda shell.bash hook)\"" >> "$HOME/conda_bashrc"
+    source "$HOME/conda_bashrc"
+    conda init --all
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+    source "$HOME/conda_bashrc"
+    conda create -n geoips -c conda-forge python=3.11 -y
+    conda activate geoips
+    python -m pip install --upgrade pip
+    python -m pip install geoips geoips_clavrx
+)
 
+# --- Copy conda environment to each user's home directory ---
+# Also add conda initialization and geoips environment activation to each user's .bashrc
 export MINICONDA_SRC=/opt/miniconda-ref
 printf "%s\n" "${usernames[@]}" | xargs -P"${NUM_USERS}" -I{} bash -c '
     TARGET="/home/{}/miniconda3"
