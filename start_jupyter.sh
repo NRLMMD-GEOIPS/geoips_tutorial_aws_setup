@@ -19,19 +19,29 @@ chmod 755 /srv/jupyterhub
 
 cat > /srv/jupyterhub/jupyterhub_config.py <<EOF
 import os
+import pwd
 import subprocess
 
-def post_spawn_hook(spawner):
+def pre_spawn_hook(spawner):
     username = spawner.user.name
+    user_info = pwd.getpwnam(username)
+    uid = user_info.pw_uid
+    gid = user_info.pw_gid
     home_dir = os.path.expanduser(f"~{username}")
-    repo_url = "${REPO_URL}"
+    repo_url = "${TUTORIAL_REPO_URL}"
     clone_dir = os.path.join(home_dir, "geoips_tutorials")
 
     if not os.path.exists(clone_dir):
         subprocess.run(["git", "clone", repo_url, clone_dir], cwd=home_dir, check=True)
+        for root, dirs, files in os.walk(clone_dir):
+            os.chown(root, uid, gid)
+            for d in dirs:
+                os.chown(os.path.join(root, d), uid, gid)
+            for f in files:
+                os.chown(os.path.join(root, f), uid, gid)
     spawner.notebook_dir = clone_dir
 
-c.Spawner.post_spawn_hook = post_spawn_hook
+c.Spawner.pre_spawn_hook = pre_spawn_hook
 c.Spawner.default_url = '/lab'
 c.Authenticator.allowed_users = $quoted_users
 c.JupyterHub.bind_url = "http://0.0.0.0:8000"

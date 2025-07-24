@@ -45,7 +45,7 @@ done
     conda create -n geoips -c conda-forge python=3.11 -y
     conda activate geoips
     python -m pip install --upgrade pip
-    python -m pip install geoips geoips_clavrx
+    python -m pip install geoips geoips_clavrx ipykernel
 )
 
 # --- Copy conda environment to each user's home directory ---
@@ -53,9 +53,17 @@ done
 export MINICONDA_SRC=/opt/miniconda-ref
 printf "%s\n" "${usernames[@]}" | xargs -P"${NUM_USERS}" -I{} bash -c '
     TARGET="/home/{}/miniconda3"
+    ENV_BIN="$TARGET/envs/geoips/bin"
+    KERNEL_DISPLAY_NAME="GeoIPS - Python 3.11"
+
     mkdir "$TARGET"
     rsync -a "$MINICONDA_SRC/" "$TARGET/"
     chown -R {}:{} "$TARGET"
     echo "eval \"\$($TARGET/bin/conda shell.bash hook)\"" >> "/home/{}/.bashrc"
     echo "conda activate geoips" >> "/home/{}/.bashrc"
+
+    su - {} -c "
+        source \"$TARGET/bin/activate\" geoips && \
+        python -m ipykernel install --user --name geoips --display-name \"$KERNEL_DISPLAY_NAME\"
+    "
 '
