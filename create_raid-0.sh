@@ -1,6 +1,12 @@
 #!/bin/bash
 set -euxo pipefail
 
+# Exit early if already complete
+if mountpoint -q /mnt/nvme_raid; then
+    echo "✅ NVMe RAID setup already completed (mounted at /mnt/nvme_raid). Skipping."
+    exit 0
+fi
+
 # Install required tools
 if command -v yum &> /dev/null; then
     yum install -y mdadm xfsprogs util-linux
