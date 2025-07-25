@@ -8,7 +8,7 @@ RAW_SECRET=$(aws secretsmanager get-secret-value \
   --output text)
 
 # Extract the inner JSON string
-INNER_JSON=$(echo "$RAW_SECRET" | jq -r '.GEOIPS_TUTORIAL_SSL')
+INNER_JSON=$(echo "$RAW_SECRET" | jq -r '.GEOIPS_TUTORIAL_TLS')
 
 # Extract cert and key
 CERT=$(echo "$INNER_JSON" | jq -r '.cert')
