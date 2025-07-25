@@ -24,10 +24,14 @@ dnf install -y python3-pip git shadow-utils wget rsync nginx unzip
 if curl --connect-timeout 1 -s http://169.254.169.254/latest/meta-data/ > /dev/null; then
     echo "🖥️ Detected EC2 or systemd host"
     echo "    Doing full setup including RAID, SSL, and Nginx"
-    echo "Installing AWS CLI"
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-    unzip awscliv2.zip
-    ./aws/install
+    if ! command -v aws &> /dev/null; then
+        echo "Installing AWS CLI"
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        ./aws/install
+    else
+        echo "✅ AWS CLI already installed. Skipping installation."
+    fi
 
     # --- Create RAID 0 if applicable ---
     echo "Setting up RAID 0 if applicable"
@@ -35,6 +39,7 @@ if curl --connect-timeout 1 -s http://169.254.169.254/latest/meta-data/ > /dev/n
         $SCRIPT_DIR/create_raid-0.sh
     else
         echo "Warning: create_raid-0.sh not found, skipping RAID setup"
+    fi
 
     # --- Collect cert and key from AWS Secrets Manager ---
     echo "Collecting SSL certificate and key"
