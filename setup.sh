@@ -7,17 +7,6 @@ HOME=/root
 NUM_USERS=4
 TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
 
-# --- Detect environment (EC2 or Docker) ---
-# If EC2, we will fetch the SSL certificate and key from AWS Secrets Manager.
-# If Docker, we will skip this step since it is not needed.
-if grep -qE '/docker/|/lxc/' /proc/1/cgroup || [ -f /.dockerenv ]; then
-    echo "🛠️ Detected Docker container"
-else
-    echo "🖥️ Detected EC2 or systemd host"
-    echo "Collecting SSL certificate and key"
-    $SCRIPT_DIR/get_cert.sh
-fi
-
 # --- Install system-level software ---
 dnf update -y
 # Remove any existing AppStream or conflicting versions
@@ -29,10 +18,21 @@ dnf install -y nodejs
 # Install required tools (excluding npm since it's bundled)
 dnf install -y python3-pip git shadow-utils wget rsync nginx
 
-# --- Set up Nginx ---
-systemctl enable --now nginx
-cp $SCRIPT_DIR/jupyterhub.conf /etc/nginx/conf.d/jupyterhub.conf
-systemctl restart nginx
+# --- Detect environment (EC2 or Docker) ---
+# If EC2, we will fetch the SSL certificate and key from AWS Secrets Manager.
+# If Docker, we will skip this step since it is not needed.
+if grep -qE '/docker/|/lxc/' /proc/1/cgroup || [ -f /.dockerenv ]; then
+    echo "🛠️ Detected Docker container"
+else
+    echo "🖥️ Detected EC2 or systemd host"
+    echo "Collecting SSL certificate and key"
+    $SCRIPT_DIR/get_cert.sh
+    # --- Set up Nginx ---
+    systemctl enable --now nginx
+    cp $SCRIPT_DIR/jupyterhub.conf /etc/nginx/conf.d/jupyterhub.conf
+    systemctl restart nginx
+fi
+
 
 # --- Install JupyterHub and notebook server ---
 python3 -m pip install jupyterhub notebook jupyterlab ipykernel
