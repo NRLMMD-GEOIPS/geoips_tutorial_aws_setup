@@ -57,6 +57,12 @@ c.JupyterHub.bind_url = "http://0.0.0.0:8000"
 if os.path.exists(cert_file) and os.path.exists(key_file):
     c.JupyterHub.ssl_cert = cert_file
     c.JupyterHub.ssl_key = key_file
+    c.JupyterHub.bind_url = 'http://127.0.0.1:8000'
+    c.JupyterHub.hub_bind_url = 'http://127.0.0.1:8081'
+    c.JupyterHub.hub_connect_url = 'http://127.0.0.1:8081'
+
+    # Trust the proxy (Nginx)
+    c.JupyterHub.trusted_downstream_ips = ['127.0.0.1']
 else:
     print("Warning: SSL certificate or key not found. JupyterHub will run without SSL.")
 EOF
@@ -77,9 +83,6 @@ if $in_container; then
     exec "$JHUB_EXEC" --config "$JHUB_CONFIG"
 else
     echo "🖥️ Detected EC2 or systemd host"
-
-    echo "Collecting SSL certificate and key"
-    $SCRIPT_DIR/get_cert.sh
 
     # Ensure systemd is present
     if ! command -v systemctl &> /dev/null; then
