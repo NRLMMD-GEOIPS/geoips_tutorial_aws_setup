@@ -52,19 +52,26 @@ c.Spawner.cmd = [f"/opt/start_jupyterlab.sh"]
 c.Spawner.pre_spawn_hook = pre_spawn_hook
 c.Spawner.default_url = '/lab'
 c.Authenticator.allowed_users = $quoted_users
-c.JupyterHub.bind_url = "http://0.0.0.0:8000"
+c.JupyterHub.bind_url = 'http://127.0.0.1:8000'
+c.JupyterHub.hub_bind_url = 'http://127.0.0.1:8081'
+c.JupyterHub.hub_connect_url = 'http://127.0.0.1:8081'
 
-if os.path.exists(cert_file) and os.path.exists(key_file):
-    c.JupyterHub.ssl_cert = cert_file
-    c.JupyterHub.ssl_key = key_file
-    c.JupyterHub.bind_url = 'http://127.0.0.1:8000'
-    c.JupyterHub.hub_bind_url = 'http://127.0.0.1:8081'
-    c.JupyterHub.hub_connect_url = 'http://127.0.0.1:8081'
+# Trust the proxy (Nginx)
+c.JupyterHub.trusted_downstream_ips = ['127.0.0.1']
 
-    # Trust the proxy (Nginx)
-    c.JupyterHub.trusted_downstream_ips = ['127.0.0.1']
-else:
-    print("Warning: SSL certificate or key not found. JupyterHub will run without SSL.")
+# c.JupyterHub.bind_url = "http://0.0.0.0:8000"
+# 
+# if os.path.exists(cert_file) and os.path.exists(key_file):
+#     c.JupyterHub.ssl_cert = cert_file
+#     c.JupyterHub.ssl_key = key_file
+#     c.JupyterHub.bind_url = 'http://127.0.0.1:8000'
+#     c.JupyterHub.hub_bind_url = 'http://127.0.0.1:8081'
+#     c.JupyterHub.hub_connect_url = 'http://127.0.0.1:8081'
+# 
+#     # Trust the proxy (Nginx)
+#     c.JupyterHub.trusted_downstream_ips = ['127.0.0.1']
+# else:
+#     print("Warning: SSL certificate or key not found. JupyterHub will run without SSL.")
 EOF
 chmod 644 /srv/jupyterhub/jupyterhub_config.py
 
