@@ -1,4 +1,8 @@
+#!/bin/env bash
+set -e
+
 # --- Settings ---
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 HOME=/root
 NUM_USERS=4
 TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
@@ -22,12 +26,15 @@ import os
 import pwd
 import subprocess
 
+cert_file = '/etc/ssl/certs/jupyterhub.crt'
+key_file = '/etc/ssl/private/jupyterhub.key'
+
 def pre_spawn_hook(spawner):
     username = spawner.user.name
+    home_dir = os.path.expanduser(f"~{username}")
     user_info = pwd.getpwnam(username)
     uid = user_info.pw_uid
     gid = user_info.pw_gid
-    home_dir = os.path.expanduser(f"~{username}")
     repo_url = "${TUTORIAL_REPO_URL}"
     clone_dir = os.path.join(home_dir, "geoips_tutorials")
 
@@ -41,10 +48,17 @@ def pre_spawn_hook(spawner):
                 os.chown(os.path.join(root, f), uid, gid)
     spawner.notebook_dir = clone_dir
 
+c.Spawner.cmd = [f"/opt/start_jupyterlab.sh"]
 c.Spawner.pre_spawn_hook = pre_spawn_hook
 c.Spawner.default_url = '/lab'
 c.Authenticator.allowed_users = $quoted_users
 c.JupyterHub.bind_url = "http://0.0.0.0:8000"
+
+if os.path.exists(cert_file) and os.path.exists(key_file):
+    c.JupyterHub.ssl_cert = cert_file
+    c.JupyterHub.ssl_key = key_file
+else:
+    print("Warning: SSL certificate or key not found. JupyterHub will run without SSL.")
 EOF
 chmod 644 /srv/jupyterhub/jupyterhub_config.py
 
@@ -63,6 +77,9 @@ if $in_container; then
     exec "$JHUB_EXEC" --config "$JHUB_CONFIG"
 else
     echo "🖥️ Detected EC2 or systemd host"
+
+    echo "Collecting SSL certificate and key"
+    $SCRIPT_DIR/get_cert.sh
 
     # Ensure systemd is present
     if ! command -v systemctl &> /dev/null; then
