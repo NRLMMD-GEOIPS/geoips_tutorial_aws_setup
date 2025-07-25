@@ -16,21 +16,44 @@ curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 # Install Node.js 18 (npm is bundled)
 dnf install -y nodejs
 # Install required tools (excluding npm since it's bundled)
-dnf install -y python3-pip git shadow-utils wget rsync nginx
+dnf install -y python3-pip git shadow-utils wget rsync nginx unzip
 
 # --- Detect environment (EC2 or Docker) ---
 # If EC2, we will fetch the SSL certificate and key from AWS Secrets Manager.
 # If Docker, we will skip this step since it is not needed.
-if grep -qE '/docker/|/lxc/' /proc/1/cgroup || [ -f /.dockerenv ]; then
-    echo "🛠️ Detected Docker container"
-else
+if curl --connect-timeout 1 -s http://169.254.169.254/latest/meta-data/ > /dev/null; then
     echo "🖥️ Detected EC2 or systemd host"
+    echo "    Doing full setup including RAID, SSL, and Nginx"
+    echo "Installing AWS CLI"
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip awscliv2.zip
+    ./aws/install
+
+    # --- Create RAID 0 if applicable ---
+    echo "Setting up RAID 0 if applicable"
+    if [ -f "$SCRIPT_DIR/create_raid-0.sh" ]; then
+        $SCRIPT_DIR/create_raid-0.sh
+    else
+        echo "Warning: create_raid-0.sh not found, skipping RAID setup"
+
+    # --- Collect cert and key from AWS Secrets Manager ---
     echo "Collecting SSL certificate and key"
-    $SCRIPT_DIR/get_cert.sh
+    if [ -f "$SCRIPT_DIR/get_cert.sh" ]; then
+        $SCRIPT_DIR/get_cert.sh
+    else
+        echo "Warning: get_cert.sh not found, skipping SSL setup"
+    fi
+
     # --- Set up Nginx ---
     systemctl enable --now nginx
     cp $SCRIPT_DIR/jupyterhub.conf /etc/nginx/conf.d/jupyterhub.conf
     systemctl restart nginx
+else
+    echo "🛠️ Detected Docker container or Local host"
+    echo "Doing less invasive setup"
+    echo "    No RAID setup"
+    echo "    No SSL certificate/key setup"
+    echo "    No Nginx setup"
 fi
 
 

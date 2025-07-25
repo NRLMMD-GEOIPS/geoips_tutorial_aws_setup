@@ -3,7 +3,7 @@ set -e
 
 # Fetch the secret value from Secrets Manager
 RAW_SECRET=$(aws secretsmanager get-secret-value \
-  --secret-id GEOIPS_TUTORIAL_SSL \
+  --secret-id GEOIPS_TUTORIAL_TLS \
   --query SecretString \
   --output text)
 
