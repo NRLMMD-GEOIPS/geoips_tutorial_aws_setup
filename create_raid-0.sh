@@ -15,15 +15,18 @@ else
     apt-get install -y mdadm xfsprogs util-linux
 fi
 
-# === Discover all unmounted NVMe instance store volumes ===
-nvme_all=(
-  $(lsblk -dno NAME,TYPE,MOUNTPOINT | \
-    awk '$2 == "disk" && $3 == "" && $1 ~ /^nvme/ {print "/dev/" $1}' | \
-    sort)
-)
+# === Discover all usable unmounted NVMe instance store volumes ===
+nvme_all=()
+while read -r name; do
+    # Skip devices with mounted partitions
+    if lsblk -no MOUNTPOINT "/dev/$name" | grep -qv '^$'; then
+        continue
+    fi
+    nvme_all+=("/dev/$name")
+done < <(lsblk -dno NAME,TYPE | awk '$2 == "disk" && $1 ~ /^nvme/')
 
 num_nvme=${#nvme_all[@]}
-echo "🔍 Found $num_nvme unmounted NVMe disk(s): ${nvme_all[*]}"
+echo "🔍 Found $num_nvme usable unmounted NVMe disk(s): ${nvme_all[*]}"
 
 # === Behavior by count ===
 if [ "$num_nvme" -eq 0 ]; then
