@@ -7,6 +7,10 @@ HOME=/root
 NUM_USERS=4
 TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
 
+# --- Disable SELinux ---
+# Doing this until I have time to figure out how to set it up properly.
+setenforce 0
+
 # --- Install system-level software ---
 dnf update -y
 # Remove any existing AppStream or conflicting versions
