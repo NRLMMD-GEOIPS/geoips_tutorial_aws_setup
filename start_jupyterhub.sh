@@ -7,6 +7,16 @@ HOME=/root
 NUM_USERS=4
 TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
 
+# If --nginx is passed as an argument, we will assume nginx exists and is configured.
+# If not, we will skip nginx setup and bind JupyterHub to all interfaces.  Using --nginx
+# is useful when running in a production environment with Nginx as a reverse proxy.  If
+# not using Nginx, JupyterHub will bind to 0.0.0.0:8000.
+if [ "$1" == "--nginx" ]; then
+    NGINX=true
+else
+    NGINX=false
+fi
+
 # --- Create usernames ---
 usernames=()
 for unum in $(seq -w 1 "${NUM_USERS}"); do
@@ -52,27 +62,30 @@ c.Spawner.cmd = [f"/opt/start_jupyterlab.sh"]
 c.Spawner.pre_spawn_hook = pre_spawn_hook
 c.Spawner.default_url = '/lab'
 c.Authenticator.allowed_users = $quoted_users
+EOF
+
+# If NGINX is not enabled, bind JupyterHub to all interfaces
+# This is for use in a Docker container or local host where NGINX is not used.
+if [[ "${NGINX,,}" != "true" ]]; then
+cat >> /srv/jupyterhub/jupyterhub_config.py <<EOF
+c.JupyterHub.bind_url = "http://0.0.0.0:8000"
+c.JupyterHub.hub_bind_url = 'http://0.0.0.0:8081'
+c.JupyterHub.hub_connect_url = 'http://0.0.0.0:8081'
+EOF
+# If NGINX is enabled, set the bind URL to localhost
+# This is for use in a production environment like an EC2 instance where NGINX
+# is used as a reverse proxy.
+else
+cat >> /srv/jupyterhub/jupyterhub_config.py <<EOF
 c.JupyterHub.bind_url = 'http://127.0.0.1:8000'
 c.JupyterHub.hub_bind_url = 'http://127.0.0.1:8081'
 c.JupyterHub.hub_connect_url = 'http://127.0.0.1:8081'
 
 # Trust the proxy (Nginx)
 c.JupyterHub.trusted_downstream_ips = ['127.0.0.1']
-
-# c.JupyterHub.bind_url = "http://0.0.0.0:8000"
-# 
-# if os.path.exists(cert_file) and os.path.exists(key_file):
-#     c.JupyterHub.ssl_cert = cert_file
-#     c.JupyterHub.ssl_key = key_file
-#     c.JupyterHub.bind_url = 'http://127.0.0.1:8000'
-#     c.JupyterHub.hub_bind_url = 'http://127.0.0.1:8081'
-#     c.JupyterHub.hub_connect_url = 'http://127.0.0.1:8081'
-# 
-#     # Trust the proxy (Nginx)
-#     c.JupyterHub.trusted_downstream_ips = ['127.0.0.1']
-# else:
-#     print("Warning: SSL certificate or key not found. JupyterHub will run without SSL.")
 EOF
+fi
+
 chmod 644 /srv/jupyterhub/jupyterhub_config.py
 
 # --- Detect container environment ---
