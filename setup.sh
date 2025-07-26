@@ -63,7 +63,7 @@ fi
 
 
 # --- Install JupyterHub and notebook server ---
-python3 -m pip install jupyterhub notebook jupyterlab ipykernel
+python3 -m pip install jupyterhub notebook jupyterlab
 npm install -g configurable-http-proxy
 
 # --- Create users ---
