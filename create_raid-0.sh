@@ -23,7 +23,7 @@ while read -r name; do
         continue
     fi
     nvme_all+=("/dev/$name")
-done < <(lsblk -dno NAME,TYPE | awk '$2 == "disk" && $1 ~ /^nvme/')
+done < <(lsblk -dno NAME | grep '^nvme')
 
 num_nvme=${#nvme_all[@]}
 echo "🔍 Found $num_nvme usable unmounted NVMe disk(s): ${nvme_all[*]}"
