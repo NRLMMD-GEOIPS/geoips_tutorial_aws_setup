@@ -7,12 +7,9 @@ RAW_SECRET=$(aws secretsmanager get-secret-value \
   --query SecretString \
   --output text)
 
-# Extract the inner JSON string
-INNER_JSON=$(echo "$RAW_SECRET" | jq -r '.GEOIPS_TUTORIAL_TLS')
-
 # Extract cert and key
-CERT=$(echo "$INNER_JSON" | jq -r '.cert')
-KEY=$(echo "$INNER_JSON" | jq -r '.key')
+CERT=$(echo "$RAW_SECRET" | jq -r '.cert')
+KEY=$(echo "$RAW_SECRET" | jq -r '.key')
 
 mkdir -p /etc/ssl/certs
 mkdir -p /etc/ssl/private
