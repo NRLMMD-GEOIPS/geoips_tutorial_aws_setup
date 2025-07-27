@@ -1,10 +1,19 @@
 #!/bin/env bash
 set -e
 
+set -e
+
+# Validate input
+if [[ $# -ne 1 || ! "$1" =~ ^[0-9]+$ ]]; then
+  echo "Usage: $0 <num_users (integer)>"
+  exit 1
+fi
+
+NUM_USERS=$1
+
 # --- Settings ---
 SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 HOME=/root
-NUM_USERS=4
 TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
 
 # --- Disable SELinux ---
@@ -105,7 +114,7 @@ chmod +x /opt/start_jupyterlab.sh
     conda activate geoips
     # python -m pip install --upgrade pip
     python -m pip install --force-reinstall --no-deps setuptools
-    python -m pip install geoips geoips_clavrx ipykernel
+    python -m pip install geoips geoips_clavrx ipykernel 
 
     # This creates a copy of the current conda environment for distribution to
     # other locations (i.e. user home directories). When unpacked, it acts as a
