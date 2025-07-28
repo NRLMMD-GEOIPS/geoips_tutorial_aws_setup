@@ -1,9 +1,11 @@
+
 import psutil
 import time
 import datetime
 import matplotlib.pyplot as plt
 import signal
 import matplotlib.dates as mdates
+import multiprocessing
 
 SAMPLE_INTERVAL = 0.1  # seconds
 
@@ -40,7 +42,8 @@ while running:
     now = datetime.datetime.now()
     timestamps.append(now)
 
-    cpu = psutil.cpu_percent(interval=None)
+    # Corrected CPU usage calculation: sum of per-core percentages
+    cpu = sum(psutil.cpu_percent(interval=None, percpu=True))
     cpu_percentages.append(cpu)
 
     mem = psutil.virtual_memory().used / (1024 ** 3)  # in GB
@@ -78,7 +81,10 @@ fig, axes = plt.subplots(5, 1, figsize=(14, 12), sharex=True)
 locator = mdates.AutoDateLocator()
 formatter = mdates.ConciseDateFormatter(locator)
 
+ncpus = multiprocessing.cpu_count()
+
 axes[0].plot(timestamps, cpu_percentages, label='CPU Usage (%)', color='blue')
+axes[0].axhline(ncpus * 100, color='gray', linestyle='--', label='Full CPU Capacity')
 axes[0].set_ylabel('CPU (%)')
 axes[0].set_title('System Monitoring Metrics Over Time')
 axes[0].grid(True)
