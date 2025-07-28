@@ -31,6 +31,9 @@ mkdir -p /srv/jupyterhub
 chown -R root:root /srv/jupyterhub
 chmod 755 /srv/jupyterhub
 
+mkdir -p /tmp/geoips_tutorial_tempdirs
+chmod 777 /tmp/geoips_tutorial_tempdirs
+
 cat > /srv/jupyterhub/jupyterhub_config.py <<EOF
 import os
 import pwd
