@@ -14,6 +14,9 @@ num_users=$1
 for i in $(seq 1 "$num_users"); do
   user="user$i"
   su - "$user" -c '
+    if [ ! -d "$HOME/geoips_tutorials" ]; then
+        git clone https://github.com/nrlmmd-geoips/geoips_tutorials.git "$HOME/geoips_tutorials"
+    fi
     cd "$HOME/geoips_tutorials" &&
     git checkout tutorial-devel &&
     pip install .[test] &&
