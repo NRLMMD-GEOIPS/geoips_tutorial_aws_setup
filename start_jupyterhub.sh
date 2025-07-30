@@ -1,28 +1,30 @@
 #!/bin/env bash
 set -e
 
-# Validate input
-if [[ $# -ne 1 || ! "$1" =~ ^[0-9]+$ ]]; then
+# Validate arguments
+if [[ $# -lt 1 || $# -gt 2 || ! "$1" =~ ^[0-9]+$ || ( $# -eq 2 && "$2" != "--nginx" ) ]]; then
   echo "Usage: $0 <num_users (integer)> [--nginx]"
   exit 1
 fi
 
-NUM_USERS=$1
-
-# --- Settings ---
-SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-HOME=/root
-TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
+# Store number of users
+NUM_USERS="$1"
 
 # If --nginx is passed as an argument, we will assume nginx exists and is configured.
 # If not, we will skip nginx setup and bind JupyterHub to all interfaces.  Using --nginx
 # is useful when running in a production environment with Nginx as a reverse proxy.  If
 # not using Nginx, JupyterHub will bind to 0.0.0.0:8000.
-if [ "$2" == "--nginx" ]; then
-    NGINX=true
+# Set NGINX flag
+if [[ "$2" == "--nginx" ]]; then
+  NGINX=true
 else
-    NGINX=false
+  NGINX=false
 fi
+
+# --- Settings ---
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+HOME=/root
+TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
 
 # --- Create usernames ---
 usernames=()
