@@ -60,6 +60,10 @@ def pre_spawn_hook(spawner):
             for f in files:
                 os.chown(os.path.join(root, f), uid, gid)
     spawner.notebook_dir = clone_dir
+    spawner.environment["GEOIPS_OUTDIRS"] = os.path.join(home_dir, "geoips_outdirs")
+    spawner.environment["GEOIPS_TESTDATA_DIR"] = os.path.join(home_dir, "geoips_test_data")
+    os.makedirs(spawner.environment["GEOIPS_OUTDIRS"], exist_ok=True)
+    os.makedirs(spawner.environment["GEOIPS_TESTDATA_DIR"], exist_ok=True)
 
 c.Spawner.cmd = [f"/opt/start_jupyterlab.sh"]
 c.Spawner.pre_spawn_hook = pre_spawn_hook
