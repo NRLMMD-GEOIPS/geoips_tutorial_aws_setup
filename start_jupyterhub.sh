@@ -37,10 +37,41 @@ chmod 777 /tmp/geoips_tutorial_tempdirs
 cat > /srv/jupyterhub/jupyterhub_config.py <<EOF
 import os
 import pwd
+import grp
 import subprocess
 
 cert_file = '/etc/ssl/certs/jupyterhub.crt'
 key_file = '/etc/ssl/private/jupyterhub.key'
+
+
+def recursive_chown(path: str, user: str, group: str):
+    """
+    Recursively change ownership of a file or directory.
+
+    Args:
+        path (str): Path to the file or directory.
+        user (str): Username to assign ownership to.
+        group (str): Group name to assign ownership to.
+    """
+    # Resolve UID and GID from names
+    uid = pwd.getpwnam(user).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+
+    # Walk through directory tree (or handle file)
+    if os.path.isdir(path):
+        for root, dirs, files in os.walk(path):
+            # Change directory itself
+            os.chown(root, uid, gid)
+            # Change all directories
+            for d in dirs:
+                os.chown(os.path.join(root, d), uid, gid)
+            # Change all files
+            for f in files:
+                os.chown(os.path.join(root, f), uid, gid)
+    else:
+        # If it's a single file
+        os.chown(path, uid, gid)
+
 
 def pre_spawn_hook(spawner):
     username = spawner.user.name
@@ -64,6 +95,9 @@ def pre_spawn_hook(spawner):
     spawner.environment["GEOIPS_TESTDATA_DIR"] = os.path.join(home_dir, "geoips_test_data")
     os.makedirs(spawner.environment["GEOIPS_OUTDIRS"], exist_ok=True)
     os.makedirs(spawner.environment["GEOIPS_TESTDATA_DIR"], exist_ok=True)
+
+    recursive_chown(spawner.environment["GEOIPS_OUTDIRS"], username, username)
+    recursive_chown(spawner.environment["GEOIPS_TESTDATA_DIR"], username, username)
 
 c.Spawner.cmd = [f"/opt/start_jupyterlab.sh"]
 c.Spawner.pre_spawn_hook = pre_spawn_hook
