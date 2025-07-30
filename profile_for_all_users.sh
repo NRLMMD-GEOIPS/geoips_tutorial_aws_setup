@@ -21,6 +21,8 @@ for i in $(seq 1 "$num_users"); do
     git checkout tutorial-devel &&
     pip install .[test] &&
     cd notebooks &&
+    export GEOIPS_OUTDIRS="$HOME/geoips_outdirs" &&
+    export GEOIPS_TESTDATA_DIR="$HOME/geoips_test_data" &&
     python ../profile_notebook.py ./scripting_with_geoips.ipynb
   ' &
 done
