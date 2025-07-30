@@ -126,6 +126,10 @@ chmod +x /opt/start_jupyterlab.sh
     # so I'm just going to ignore it.
     rm -f /opt/geoips-env.tgz
     conda-pack -n geoips -o /opt/geoips-env.tgz --ignore-missing-files
+
+    # Install data from s3 bucket
+    aws s3 cp s3://geoips-tutorial/geoips_outdirs /opt/geoips_outdirs --recursive
+    aws s3 cp s3://geoips-tutorial/geoips_test_data /opt/geoips_test_data --recursive
 )
 
 # This function copies the conda environment to each user's home directory
@@ -152,6 +156,10 @@ setup_user_env() {
 
     # Add environment activation to bashrc and install kernel
     su - "${user}" -c "bash ${user_home}/install_geoips_env.sh"
+
+    # Copy data to user's home directory
+    cp -r /opt/geoips_outdirs/ "${user_home}/geoips_outdirs"
+    cp -r /opt/geoips_test_data/ "${user_home}/geoips_test_data"
 }
 
 # Export to make available in subshells
