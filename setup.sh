@@ -129,7 +129,7 @@ chmod +x /opt/start_jupyterlab.sh
 
     # Install data from s3 bucket
     aws s3 cp s3://geoips-tutorial/geoips_outdirs /opt/geoips_outdirs --recursive
-    aws s3 cp s3://geoips-tutorial/geoips_test_data /opt/geoips_test_data --recursive
+    aws s3 cp s3://geoips-tutorial/geoips_testdata_dir /opt/geoips_testdata_dir --recursive
 )
 
 # This function copies the conda environment to each user's home directory
@@ -159,7 +159,9 @@ setup_user_env() {
 
     # Copy data to user's home directory
     cp -r /opt/geoips_outdirs/ "${user_home}/geoips_outdirs"
-    cp -r /opt/geoips_test_data/ "${user_home}/geoips_test_data"
+    cp -r /opt/geoips_testdata_dir/ "${user_home}/geoips_test_data"
+    chown -R "${user}:${user}" "${user_home}/geoips_outdirs"
+    chown -R "${user}:${user}" "${user_home}/geoips_test_data"
 }
 
 # Export to make available in subshells
