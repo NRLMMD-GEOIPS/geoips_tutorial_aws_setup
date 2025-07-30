@@ -1,8 +1,6 @@
 #!/bin/env bash
 set -e
 
-set -e
-
 # Validate input
 if [[ $# -ne 1 || ! "$1" =~ ^[0-9]+$ ]]; then
   echo "Usage: $0 <num_users (integer)>"
@@ -81,9 +79,9 @@ npm install -g configurable-http-proxy
 
 # --- Create users ---
 usernames=()
-for unum in $(seq -w 1 "${NUM_USERS}"); do
-    user="user${unum}"
-    pass="geoips_pass${unum}"
+for unum in $(seq 1 "${NUM_USERS}"); do
+    user=$(printf "user%02d" "$unum")
+    pass=$(printf "geoips_pass%02d" "$unum")
     useradd -m "${user}" || true
     echo "${user}:${pass}" | chpasswd
     usernames+=("${user}")
