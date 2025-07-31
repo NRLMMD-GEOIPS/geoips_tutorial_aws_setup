@@ -156,6 +156,10 @@ setup_user_env() {
     # Add environment activation to bashrc and install kernel
     su - "${user}" -c "bash ${user_home}/install_geoips_env.sh"
 
+    # Configure git user
+    su - "${user}" -c "git config --global user.name 'GeoIPS User ${user}'"
+    su - "${user}" -c "git config --global user.email 'geoips_${user}@geoips-tutorial.org'"
+
     # Copy data to user's home directory
     cp -r /tmp/geoips_outdirs/ "${user_home}/geoips_outdirs"
     cp -r /tmp/geoips_testdata_dir/ "${user_home}/geoips_test_data"
