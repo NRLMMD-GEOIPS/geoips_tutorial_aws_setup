@@ -100,23 +100,20 @@ def pre_spawn_hook(spawner):
             for f in files:
                 os.chown(os.path.join(root, f), uid, gid)
 
-    spawner.notebook_dir = clone_dir
+    spawner.notebook_dir = home_dir
 
     # Set up GeoIPS environment variables
-    spawner.environment["GEOIPS_REPO_URL"] = "https://github.com/nrlmmd-geoips
+    spawner.environment["GEOIPS_REPO_URL"] = "https://github.com/nrlmmd-geoips"
     spawner.environment["GEOIPS_REBUILD_REGISTRIES"] = "True"
     spawner.environment["GEOIPS_OUTDIRS"] = os.path.join(home_dir, "geoips_outdirs")
     spawner.environment["GEOIPS_TESTDATA_DIR"] = os.path.join(home_dir, "geoips_test_data")
+    spawner.environment["GEOIPS_PACKAGES_DIR"] = home_dir
+    spawner.environment["MY_PKG_NAME"] = "cool_plugins"
+    spawner.environment["CAROPY_DATA_DIR"] = os.path.join(home_dir, "cartopy")
 
     # Ensure output and test data directories exist
     os.makedirs(spawner.environment["GEOIPS_OUTDIRS"], exist_ok=True)
     os.makedirs(spawner.environment["GEOIPS_TESTDATA_DIR"], exist_ok=True)
-
-    # Allow additional output
-    c.Spawner.args = [
-        "--ServerApp.iopub_msg_rate_limit=10000",
-        "--ServerApp.rate_limit_window=3.0"
-    ]
 
     recursive_chown(spawner.environment["GEOIPS_OUTDIRS"], username, username)
     recursive_chown(spawner.environment["GEOIPS_TESTDATA_DIR"], username, username)
@@ -125,6 +122,13 @@ c.Spawner.cmd = [f"/opt/start_jupyterlab.sh"]
 c.Spawner.pre_spawn_hook = pre_spawn_hook
 c.Spawner.default_url = '/lab'
 c.Authenticator.allowed_users = $quoted_users
+
+# Allow additional output
+c.Spawner.args = [
+    "--ServerApp.iopub_msg_rate_limit=10000",
+    "--ServerApp.rate_limit_window=3.0"
+]
+
 EOF
 
 # If NGINX is not enabled, bind JupyterHub to all interfaces
