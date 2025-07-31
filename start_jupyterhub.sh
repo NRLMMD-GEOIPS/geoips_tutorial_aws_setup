@@ -109,7 +109,7 @@ def pre_spawn_hook(spawner):
     spawner.environment["GEOIPS_TESTDATA_DIR"] = os.path.join(home_dir, "geoips_test_data")
     spawner.environment["GEOIPS_PACKAGES_DIR"] = home_dir
     spawner.environment["MY_PKG_NAME"] = "cool_plugins"
-    spawner.environment["CAROPY_DATA_DIR"] = os.path.join(home_dir, "cartopy")
+    spawner.environment["CARTOPY_DATA_DIR"] = os.path.join(home_dir, "cartopy")
 
     # Ensure output and test data directories exist
     os.makedirs(spawner.environment["GEOIPS_OUTDIRS"], exist_ok=True)
