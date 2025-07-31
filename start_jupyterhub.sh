@@ -28,8 +28,8 @@ TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
 
 # --- Create usernames ---
 usernames=()
-for unum in $(seq -w 1 "${NUM_USERS}"); do
-    usernames+=("user${unum}")
+for unum in $(seq 1 "${NUM_USERS}"); do
+    usernames+=("user$(printf "%02d" "$unum")")
 done
 
 # --- Build quoted user list ---
