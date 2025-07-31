@@ -27,7 +27,7 @@ curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
 # Install Node.js 18 (npm is bundled)
 dnf install -y nodejs
 # Install required tools (excluding npm since it's bundled)
-dnf install -y python3-pip git shadow-utils wget rsync nginx unzip
+dnf install -y python3-pip git shadow-utils wget rsync nginx unzip tree
 
 # --- Detect environment (EC2 or Docker) ---
 # If EC2, we will fetch the SSL certificate and key from AWS Secrets Manager.
