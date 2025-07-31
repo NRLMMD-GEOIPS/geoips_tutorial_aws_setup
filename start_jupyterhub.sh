@@ -99,6 +99,7 @@ def pre_spawn_hook(spawner):
                 os.chown(os.path.join(root, d), uid, gid)
             for f in files:
                 os.chown(os.path.join(root, f), uid, gid)
+        subprocess.run(["git", "checkout", "tutorial-devel"], cwd=clone_dir, check=True)
 
     spawner.notebook_dir = home_dir
 
