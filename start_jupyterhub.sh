@@ -99,11 +99,24 @@ def pre_spawn_hook(spawner):
                 os.chown(os.path.join(root, d), uid, gid)
             for f in files:
                 os.chown(os.path.join(root, f), uid, gid)
+
     spawner.notebook_dir = clone_dir
+
+    # Set up GeoIPS environment variables
+    spawner.environment["GEOIPS_REPO_URL"] = "https://github.com/nrlmmd-geoips
+    spawner.environment["GEOIPS_REBUILD_REGISTRIES"] = "True"
     spawner.environment["GEOIPS_OUTDIRS"] = os.path.join(home_dir, "geoips_outdirs")
     spawner.environment["GEOIPS_TESTDATA_DIR"] = os.path.join(home_dir, "geoips_test_data")
+
+    # Ensure output and test data directories exist
     os.makedirs(spawner.environment["GEOIPS_OUTDIRS"], exist_ok=True)
     os.makedirs(spawner.environment["GEOIPS_TESTDATA_DIR"], exist_ok=True)
+
+    # Allow additional output
+    c.Spawner.args = [
+        "--ServerApp.iopub_msg_rate_limit=10000",
+        "--ServerApp.rate_limit_window=3.0"
+    ]
 
     recursive_chown(spawner.environment["GEOIPS_OUTDIRS"], username, username)
     recursive_chown(spawner.environment["GEOIPS_TESTDATA_DIR"], username, username)
