@@ -154,7 +154,7 @@ install -m 755 "$SCRIPT_DIR/start_jupyterlab.sh" /opt/start_jupyterlab.sh
     # python -m pip install --upgrade pip
     python -m pip install --force-reinstall --no-deps setuptools
     python -m pip install \
-        geoips==1.18.1 \
+        "geoips @ git+https://github.com/NRLMMD-GEOIPS/geoips.git@main" \
         geoips_clavrx==1.18.1 \
         ipykernel==7.3.0
 
