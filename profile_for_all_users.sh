@@ -18,7 +18,7 @@ for i in $(seq 1 "$num_users"); do
         git clone https://github.com/nrlmmd-geoips/geoips_tutorials.git "$HOME/geoips_tutorials"
     fi
     cd "$HOME/geoips_tutorials" &&
-    git checkout tutorial-devel &&
+    git checkout 2026-workshop-updates &&
     pip install .[test] &&
     cd notebooks &&
     export GEOIPS_OUTDIRS="$HOME/geoips_outdirs" &&
