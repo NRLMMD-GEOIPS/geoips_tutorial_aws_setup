@@ -1,10 +1,13 @@
 #!/bin/bash
-set -e
+set -Eeuo pipefail
 
 TARGET="$HOME/miniconda3"
 
 echo "Extracting conda environment to $TARGET"
+mkdir -p "$TARGET"
 tar -xzf "$TARGET/geoips-env.tgz" -C "$TARGET"
+rm -f "$TARGET/geoips-env.tgz"
+"$TARGET/bin/conda-unpack"
 
 # Add activation to .bashrc if not already present
 grep -q "source $TARGET/bin/activate" "$HOME/.bashrc" || echo "source $TARGET/bin/activate" >> "$HOME/.bashrc"

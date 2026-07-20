@@ -1,4 +1,5 @@
-#!/bin/env bash
+#!/usr/bin/env bash
+set -e
 
 # This file is used as a custom command when JupyterHub spawns a JupyterLab
 # instance. It sets up the environment prior to starting JupyterLab. This allows
@@ -10,5 +11,5 @@
 # c.Spawner.cmd = [f"/opt/start-jupyterlab.sh"].
 
 
-source $HOME/.bashrc
-exec jupyterhub-singleuser "$@"
+source "$HOME/.bashrc"
+exec /opt/jupyterhub/bin/jupyterhub-singleuser "$@"

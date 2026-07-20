@@ -1,45 +1,76 @@
-#!/bin/env bash
-set -e
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+trap 'echo "ERROR: setup.sh failed at line ${LINENO}" >&2' ERR
 
 # Validate input
-if [[ $# -ne 1 || ! "$1" =~ ^[0-9]+$ ]]; then
-  echo "Usage: $0 <num_users (integer)>"
+NUM_USERS_INPUT="${1:-}"
+if [[ $# -ne 1 || ! "$NUM_USERS_INPUT" =~ ^[0-9]+$ || "$NUM_USERS_INPUT" -lt 1 ]]; then
+  echo "Usage: $0 <num_users (positive integer)>"
   exit 1
 fi
 
-NUM_USERS=$1
+NUM_USERS="$NUM_USERS_INPUT"
+MAX_PARALLEL_USER_SETUPS="${MAX_PARALLEL_USER_SETUPS:-8}"
+if [[ ! "$MAX_PARALLEL_USER_SETUPS" =~ ^[0-9]+$ || "$MAX_PARALLEL_USER_SETUPS" -lt 1 ]]; then
+    echo "MAX_PARALLEL_USER_SETUPS must be a positive integer" >&2
+    exit 1
+fi
 
 # --- Settings ---
 SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-HOME=/root
+ROOT_HOME=/root
 TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
 
 # --- Disable SELinux ---
 # Doing this until I have time to figure out how to set it up properly.
-setenforce 0
+if command -v getenforce >/dev/null && [[ "$(getenforce)" == "Enforcing" ]]; then
+    setenforce 0
+fi
 
 # --- Install system-level software ---
-dnf update -y
+dnf install -y ca-certificates curl git jq openssl python3 python3-pip shadow-utils wget rsync nginx unzip tree
+
+# Rocky 10 provides a sufficiently new system Python. Rocky 9 needs its
+# parallel-installable Python 3.11 packages for the current Jupyter stack.
+HUB_PYTHON=python3
+if ! "$HUB_PYTHON" -c 'import sys; raise SystemExit(sys.version_info < (3, 11))'; then
+    dnf install -y python3.11 python3.11-pip
+    HUB_PYTHON=python3.11
+fi
 # Remove any existing AppStream or conflicting versions
 dnf remove -y nodejs npm nsolid
-# Set up NodeSource Node.js 18 repo
-curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-# Install Node.js 18 (npm is bundled)
+dnf module reset -y nodejs || true
+# Set up NodeSource Node.js 24 LTS repo
+NODESOURCE_SETUP="$(mktemp /tmp/nodesource-setup.XXXXXX.sh)"
+curl -fsSL https://rpm.nodesource.com/setup_24.x -o "$NODESOURCE_SETUP"
+bash "$NODESOURCE_SETUP"
+rm -f "$NODESOURCE_SETUP"
+# Install Node.js 24 (npm is bundled)
 dnf install -y nodejs
-# Install required tools (excluding npm since it's bundled)
-dnf install -y python3-pip git shadow-utils wget rsync nginx unzip tree
+node --version
+npm --version
 
 # --- Detect environment (EC2 or Docker) ---
 # If EC2, we will fetch the SSL certificate and key from AWS Secrets Manager.
 # If Docker, we will skip this step since it is not needed.
-if curl --connect-timeout 1 -s http://169.254.169.254/latest/meta-data/ > /dev/null; then
+IMDS_TOKEN="$(curl -fsS --connect-timeout 2 -X PUT \
+    -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' \
+    http://169.254.169.254/latest/api/token || true)"
+
+if [[ -n "$IMDS_TOKEN" ]] && curl -fsS --connect-timeout 2 \
+    -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+    http://169.254.169.254/latest/meta-data/instance-id >/dev/null; then
     echo "🖥️ Detected EC2 or systemd host"
     echo "    Doing full setup including RAID, SSL, and Nginx"
     if ! command -v aws &> /dev/null; then
         echo "Installing AWS CLI"
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-        unzip awscliv2.zip
-        ./aws/install
+        AWS_CLI_TMP="$(mktemp -d /tmp/awscliv2.XXXXXX)"
+        curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
+            -o "$AWS_CLI_TMP/awscliv2.zip"
+        unzip -q "$AWS_CLI_TMP/awscliv2.zip" -d "$AWS_CLI_TMP"
+        "$AWS_CLI_TMP/aws/install"
+        rm -rf "$AWS_CLI_TMP"
     else
         echo "✅ AWS CLI already installed. Skipping installation."
     fi
@@ -61,8 +92,9 @@ if curl --connect-timeout 1 -s http://169.254.169.254/latest/meta-data/ > /dev/n
     fi
 
     # --- Set up Nginx ---
-    systemctl enable --now nginx
-    cp $SCRIPT_DIR/jupyterhub.conf /etc/nginx/conf.d/jupyterhub.conf
+    install -m 644 "$SCRIPT_DIR/jupyterhub.conf" /etc/nginx/conf.d/jupyterhub.conf
+    nginx -t
+    systemctl enable nginx
     systemctl restart nginx
 else
     echo "🛠️ Detected Docker container or Local host"
@@ -73,23 +105,30 @@ else
 fi
 
 
-# --- Install JupyterHub and notebook server ---
-python3 -m pip install jupyterhub notebook jupyterlab
-npm install -g configurable-http-proxy
+# --- Install a reproducible JupyterHub and notebook server stack ---
+JUPYTERHUB_VENV=/opt/jupyterhub
+"$HUB_PYTHON" -m venv "$JUPYTERHUB_VENV"
+"$JUPYTERHUB_VENV/bin/python" -m pip install --upgrade pip
+"$JUPYTERHUB_VENV/bin/python" -m pip install \
+    jupyterhub==5.5.0 \
+    jupyterlab==4.6.1 \
+    notebook==7.6.0
+npm install -g configurable-http-proxy@5.3.0
 
 # --- Create users ---
 usernames=()
 for unum in $(seq 1 "${NUM_USERS}"); do
     user=$(printf "user%02d" "$unum")
     pass=$(printf "geoips_pass%02d" "$unum")
-    useradd -m "${user}" || true
+    if ! id "${user}" >/dev/null 2>&1; then
+        useradd -m "${user}"
+    fi
     echo "${user}:${pass}" | chpasswd
     usernames+=("${user}")
 done
 
 # --- Copy JupyterLab start script ---
-cp "$SCRIPT_DIR/start_jupyterlab.sh" /opt/start_jupyterlab.sh
-chmod +x /opt/start_jupyterlab.sh
+install -m 755 "$SCRIPT_DIR/start_jupyterlab.sh" /opt/start_jupyterlab.sh
 
 # --- Download and install miniconda in /opt/miniconda-ref ---
 # This section runs in a subshell to avoid polluting the root environment
@@ -98,21 +137,26 @@ chmod +x /opt/start_jupyterlab.sh
 #
 # Later, the resulting conda installation will be copied to each user's home directory.
 (
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /opt/miniconda_installer.sh
+    MINICONDA_INSTALLER=Miniconda3-py311_26.5.3-1-Linux-x86_64.sh
+    MINICONDA_SHA256=f1d308a450763ce617f4e4f1609521358f663b2d1c097cfcc11a1c1f09baf680
+    wget "https://repo.anaconda.com/miniconda/$MINICONDA_INSTALLER" -O /opt/miniconda_installer.sh
+    echo "$MINICONDA_SHA256  /opt/miniconda_installer.sh" | sha256sum --check
     chmod u+x /opt/miniconda_installer.sh
     /opt/miniconda_installer.sh -b -u -p /opt/miniconda-ref
-    echo "export CONDA_ACCEPT_LICENSES=true" >> "$HOME/conda_bashrc"
-    echo "eval \"\$(/opt/miniconda-ref/bin/conda shell.bash hook)\"" >> "$HOME/conda_bashrc"
-    source "$HOME/conda_bashrc"
-    conda init --all
+    : > "$ROOT_HOME/conda_bashrc"
+    echo "export CONDA_ACCEPT_LICENSES=true" >> "$ROOT_HOME/conda_bashrc"
+    echo "eval \"\$(/opt/miniconda-ref/bin/conda shell.bash hook)\"" >> "$ROOT_HOME/conda_bashrc"
+    source "$ROOT_HOME/conda_bashrc"
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
-    source "$HOME/conda_bashrc"
     conda create -n geoips -c conda-forge python=3.11 conda-pack -y
     conda activate geoips
     # python -m pip install --upgrade pip
     python -m pip install --force-reinstall --no-deps setuptools
-    python -m pip install geoips geoips_clavrx ipykernel 
+    python -m pip install \
+        geoips==1.18.1 \
+        geoips_clavrx==1.18.1 \
+        ipykernel==7.3.0
 
     # This creates a copy of the current conda environment for distribution to
     # other locations (i.e. user home directories). When unpacked, it acts as a
@@ -126,9 +170,10 @@ chmod +x /opt/start_jupyterlab.sh
     conda-pack -n geoips -o /opt/geoips-env.tgz --ignore-missing-files
 
     # Install data from s3 bucket
-    aws s3 cp s3://geoips-tutorial/geoips_outdirs /tmp/geoips_outdirs --recursive
-    aws s3 cp s3://geoips-tutorial/geoips_testdata_dir /tmp/geoips_testdata_dir --recursive
-    aws s3 cp s3://geoips-tutorial/cartopy /tmp/cartopy --recursive
+    mkdir -p /tmp/geoips_outdirs /tmp/geoips_testdata_dir /tmp/cartopy
+    aws s3 sync s3://geoips-tutorial/geoips_outdirs/ /tmp/geoips_outdirs/ --delete
+    aws s3 sync s3://geoips-tutorial/geoips_testdata_dir/ /tmp/geoips_testdata_dir/ --delete
+    aws s3 sync s3://geoips-tutorial/cartopy/ /tmp/cartopy/ --delete
 )
 
 # This function copies the conda environment to each user's home directory
@@ -137,19 +182,16 @@ chmod +x /opt/start_jupyterlab.sh
 setup_user_env() {
     local user="$1"
     local user_home="/home/${user}"
-    target="${user_home}/miniconda3"
-    SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-
+    local target="${user_home}/miniconda3"
     echo "Setting up conda environment for ${user}"
 
     # Create target directory and copy env
     mkdir -p "${target}"
-    cp /opt/geoips-env.tgz "${target}/"
-    cp $SCRIPT_DIR/install_geoips_env.sh "${user_home}/install_geoips_env.sh"
+    install -m 644 /opt/geoips-env.tgz "${target}/geoips-env.tgz"
+    install -m 700 "$SCRIPT_DIR/install_geoips_env.sh" "${user_home}/install_geoips_env.sh"
 
     chown -R "${user}:${user}" "${target}"
     chown "${user}:${user}" "${user_home}/install_geoips_env.sh"
-    chmod 700 "${user_home}/install_geoips_env.sh"
 
     # Modify user's .bashrc
 
@@ -161,17 +203,20 @@ setup_user_env() {
     su - "${user}" -c "git config --global user.email 'geoips_${user}@geoips-tutorial.org'"
 
     # Copy data to user's home directory
-    cp -r /tmp/geoips_outdirs/ "${user_home}/geoips_outdirs"
-    cp -r /tmp/geoips_testdata_dir/ "${user_home}/geoips_test_data"
-    cp -r /tmp/cartopy/ "${user_home}/cartopy"
+    mkdir -p "${user_home}/geoips_outdirs" "${user_home}/geoips_test_data" "${user_home}/cartopy"
+    rsync -a --delete /tmp/geoips_outdirs/ "${user_home}/geoips_outdirs/"
+    rsync -a --delete /tmp/geoips_testdata_dir/ "${user_home}/geoips_test_data/"
+    rsync -a --delete /tmp/cartopy/ "${user_home}/cartopy/"
     chown -R "${user}:${user}" "${user_home}/geoips_outdirs"
     chown -R "${user}:${user}" "${user_home}/geoips_test_data"
     chown -R "${user}:${user}" "${user_home}/cartopy"
 }
 
 # Export to make available in subshells
+export SCRIPT_DIR
 export -f setup_user_env
 
 # --- Copy conda environment to each user's home directory ---
 # Also add conda initialization and geoips environment activation to each user's .bashrc
-printf "%s\n" "${usernames[@]}" | xargs -P"$NUM_USERS" -I{} bash -c 'setup_user_env "$@"' _ {}
+printf "%s\n" "${usernames[@]}" | xargs -r -P"$MAX_PARALLEL_USER_SETUPS" -I{} \
+    bash -Eeuo pipefail -c 'setup_user_env "$@"' _ {}

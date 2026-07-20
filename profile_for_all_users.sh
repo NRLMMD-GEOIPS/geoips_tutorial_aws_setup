@@ -12,7 +12,7 @@ fi
 num_users=$1
 
 for i in $(seq 1 "$num_users"); do
-  user="user$i"
+  user=$(printf "user%02d" "$i")
   su - "$user" -c '
     if [ ! -d "$HOME/geoips_tutorials" ]; then
         git clone https://github.com/nrlmmd-geoips/geoips_tutorials.git "$HOME/geoips_tutorials"

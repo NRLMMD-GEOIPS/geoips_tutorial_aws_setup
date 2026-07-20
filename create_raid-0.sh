@@ -41,7 +41,7 @@ elif [ "$num_nvme" -ge 2 ]; then
     echo "⚙️  Two or more NVMe devices found. Using first two in RAID 0."
     nvme_devices=( "${nvme_all[@]:0:2}" )
     mdadm --create --verbose /dev/md0 --level=0 --raid-devices=2 "${nvme_devices[@]}" --force --run
-    sleep 3
+    udevadm settle
     RAID_DEVICE="/dev/md0"
 else
     echo "❌ Unexpected condition."
@@ -65,8 +65,11 @@ mount --bind /mnt/nvme_raid/home /home
 mount --bind /mnt/nvme_raid/tmp /tmp
 
 # === Make persistent in fstab ===
-echo "$RAID_DEVICE /mnt/nvme_raid xfs defaults,nofail 0 0" >> /etc/fstab
-echo "/mnt/nvme_raid/home /home none bind 0 0" >> /etc/fstab
-echo "/mnt/nvme_raid/tmp  /tmp  none bind 0 0" >> /etc/fstab
+grep -qF "$RAID_DEVICE /mnt/nvme_raid " /etc/fstab \
+    || echo "$RAID_DEVICE /mnt/nvme_raid xfs defaults,nofail 0 0" >> /etc/fstab
+grep -qF "/mnt/nvme_raid/home /home " /etc/fstab \
+    || echo "/mnt/nvme_raid/home /home none bind 0 0" >> /etc/fstab
+grep -qF "/mnt/nvme_raid/tmp  /tmp " /etc/fstab \
+    || echo "/mnt/nvme_raid/tmp  /tmp  none bind 0 0" >> /etc/fstab
 
 echo "✅ /home and /tmp mounted from: $RAID_DEVICE"

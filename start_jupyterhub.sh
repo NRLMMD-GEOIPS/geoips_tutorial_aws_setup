@@ -1,21 +1,24 @@
-#!/bin/env bash
-set -e
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+trap 'echo "ERROR: start_jupyterhub.sh failed at line ${LINENO}" >&2' ERR
 
 # Validate arguments
-if [[ $# -lt 1 || $# -gt 2 || ! "$1" =~ ^[0-9]+$ || ( $# -eq 2 && "$2" != "--nginx" ) ]]; then
-  echo "Usage: $0 <num_users (integer)> [--nginx]"
+NUM_USERS_INPUT="${1:-}"
+if [[ $# -lt 1 || $# -gt 2 || ! "$NUM_USERS_INPUT" =~ ^[0-9]+$ || "$NUM_USERS_INPUT" -lt 1 || ( $# -eq 2 && "${2:-}" != "--nginx" ) ]]; then
+  echo "Usage: $0 <num_users (positive integer)> [--nginx]"
   exit 1
 fi
 
 # Store number of users
-NUM_USERS="$1"
+NUM_USERS="$NUM_USERS_INPUT"
 
 # If --nginx is passed as an argument, we will assume nginx exists and is configured.
 # If not, we will skip nginx setup and bind JupyterHub to all interfaces.  Using --nginx
 # is useful when running in a production environment with Nginx as a reverse proxy.  If
 # not using Nginx, JupyterHub will bind to 0.0.0.0:8000.
 # Set NGINX flag
-if [[ "$2" == "--nginx" ]]; then
+if [[ "${2:-}" == "--nginx" ]]; then
   NGINX=true
 else
   NGINX=false
@@ -23,7 +26,6 @@ fi
 
 # --- Settings ---
 SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-HOME=/root
 TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
 
 # --- Create usernames ---
@@ -41,7 +43,7 @@ chown -R root:root /srv/jupyterhub
 chmod 755 /srv/jupyterhub
 
 mkdir -p /tmp/geoips_tutorial_tempdirs
-chmod 777 /tmp/geoips_tutorial_tempdirs
+chmod 1777 /tmp/geoips_tutorial_tempdirs
 
 cat > /srv/jupyterhub/jupyterhub_config.py <<EOF
 import os
@@ -93,14 +95,13 @@ def pre_spawn_hook(spawner):
 
     if not os.path.exists(clone_dir):
         subprocess.run(["git", "clone", repo_url, clone_dir], cwd=home_dir, check=True)
+        subprocess.run(["git", "checkout", "tutorial-devel"], cwd=clone_dir, check=True)
         for root, dirs, files in os.walk(clone_dir):
             os.chown(root, uid, gid)
             for d in dirs:
                 os.chown(os.path.join(root, d), uid, gid)
             for f in files:
                 os.chown(os.path.join(root, f), uid, gid)
-        subprocess.run(["git", "checkout", "tutorial-devel"], cwd=clone_dir, check=True)
-
     spawner.notebook_dir = home_dir
 
     # Set up GeoIPS environment variables
@@ -156,6 +157,7 @@ EOF
 fi
 
 chmod 644 /srv/jupyterhub/jupyterhub_config.py
+/opt/jupyterhub/bin/python -m py_compile /srv/jupyterhub/jupyterhub_config.py
 
 # --- Detect container environment ---
 in_container=false
@@ -163,8 +165,13 @@ if grep -qE '/docker/|/lxc/' /proc/1/cgroup || [ -f /.dockerenv ]; then
     in_container=true
 fi
 
-JHUB_EXEC=$(command -v jupyterhub)
+JHUB_EXEC=/opt/jupyterhub/bin/jupyterhub
 JHUB_CONFIG=/srv/jupyterhub/jupyterhub_config.py
+
+if [[ ! -x "$JHUB_EXEC" ]]; then
+    echo "JupyterHub executable not found at $JHUB_EXEC" >&2
+    exit 1
+fi
 
 if $in_container; then
     echo "🪣 Detected Docker container"
@@ -181,23 +188,33 @@ else
     fi
 
     echo "📝 Creating systemd service for JupyterHub"
+    rm -f /var/lib/geoips-workshop-ready
     cat > /etc/systemd/system/jupyterhub.service <<EOF
 [Unit]
 Description=JupyterHub
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 User=root
+WorkingDirectory=/srv/jupyterhub
 ExecStart=${JHUB_EXEC} --config ${JHUB_CONFIG}
-Restart=always
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
     echo "🔄 Reloading systemd and enabling JupyterHub service"
-    systemctl daemon-reexec
+    systemctl daemon-reload
     systemctl enable jupyterhub
-    systemctl start jupyterhub
+    systemctl restart jupyterhub
     systemctl status jupyterhub --no-pager -l
+
+    echo "Waiting for JupyterHub health endpoint"
+    curl --fail --silent --show-error --retry 12 --retry-delay 5 --retry-connrefused \
+        http://127.0.0.1:8000/hub/health >/dev/null
+    touch /var/lib/geoips-workshop-ready
+    echo "JupyterHub is ready"
 fi
