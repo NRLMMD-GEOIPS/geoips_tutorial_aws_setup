@@ -12,6 +12,10 @@ rm -f "$TARGET/geoips-env.tgz"
 # Add activation to .bashrc if not already present
 grep -q "source $TARGET/bin/activate" "$HOME/.bashrc" || echo "source $TARGET/bin/activate" >> "$HOME/.bashrc"
 
-# Activate and install Jupyter kernel
-source "$TARGET/bin/activate"
-python -m ipykernel install --user --name geoips --display-name "GeoIPS - Python 3.11"
+# Install the Jupyter kernel with this environment's Python directly. Sourcing
+# activate under `set -u` can fail when Conda references an unset CONDA_PREFIX
+# during the initial activation.
+"$TARGET/bin/python" -m ipykernel install \
+    --user \
+    --name geoips \
+    --display-name "GeoIPS - Python 3.11"
