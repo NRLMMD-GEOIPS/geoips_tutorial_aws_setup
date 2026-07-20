@@ -19,3 +19,6 @@ grep -q "source $TARGET/bin/activate" "$HOME/.bashrc" || echo "source $TARGET/bi
     --user \
     --name geoips \
     --display-name "GeoIPS - Python 3.11"
+
+echo "Generating GeoIPS plugin registries"
+"$TARGET/bin/geoips" config create-registries
