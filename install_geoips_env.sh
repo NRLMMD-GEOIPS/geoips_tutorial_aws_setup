@@ -23,4 +23,6 @@ grep -qFx 'export GEOIPS_REBUILD_REGISTRIES=true' "$HOME/.bashrc" \
     --display-name "GeoIPS - Python 3.11"
 
 echo "Generating GeoIPS plugin registries"
-"$TARGET/bin/geoips" config create-registries
+# The GeoIPS launcher uses /usr/bin/env python. Invoke it through the packed
+# environment's interpreter because this script intentionally avoids activation.
+"$TARGET/bin/python" "$TARGET/bin/geoips" config create-registries
