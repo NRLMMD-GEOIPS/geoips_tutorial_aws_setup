@@ -103,7 +103,7 @@ def pre_spawn_hook(spawner):
                 os.chown(os.path.join(root, d), uid, gid)
             for f in files:
                 os.chown(os.path.join(root, f), uid, gid)
-    spawner.notebook_dir = home_dir
+    spawner.notebook_dir = os.path.join(clone_dir, "notebooks")
 
     # Set up GeoIPS environment variables
     spawner.environment["GEOIPS_REPO_URL"] = "https://github.com/nrlmmd-geoips"
