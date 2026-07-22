@@ -106,7 +106,7 @@ def pre_spawn_hook(spawner):
 
     # Set up GeoIPS environment variables
     spawner.environment["GEOIPS_REPO_URL"] = "https://github.com/nrlmmd-geoips"
-    spawner.environment["GEOIPS_REBUILD_REGISTRIES"] = "True"
+    spawner.environment["GEOIPS_REBUILD_REGISTRIES"] = "true"
     spawner.environment["GEOIPS_OUTDIRS"] = os.path.join(home_dir, "geoips_outdirs")
     spawner.environment["GEOIPS_TESTDATA_DIR"] = os.path.join(home_dir, "geoips_test_data")
     spawner.environment["GEOIPS_PACKAGES_DIR"] = home_dir

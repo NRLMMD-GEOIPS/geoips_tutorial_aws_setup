@@ -112,6 +112,7 @@ JUPYTERHUB_VENV=/opt/jupyterhub
 "$JUPYTERHUB_VENV/bin/python" -m pip install \
     jupyterhub==5.5.0 \
     jupyterlab==4.6.1 \
+    jupyterlab_widgets==3.0.16 \
     notebook==7.6.0
 npm install -g configurable-http-proxy@5.3.0
 
@@ -156,7 +157,8 @@ install -m 755 "$SCRIPT_DIR/start_jupyterlab.sh" /opt/start_jupyterlab.sh
     python -m pip install \
         "geoips @ git+https://github.com/NRLMMD-GEOIPS/geoips.git@main" \
         geoips_clavrx==1.18.1 \
-        ipykernel==7.3.0
+        ipykernel==7.3.0 \
+        ipywidgets==8.1.8
 
     # This creates a copy of the current conda environment for distribution to
     # other locations (i.e. user home directories). When unpacked, it acts as a
