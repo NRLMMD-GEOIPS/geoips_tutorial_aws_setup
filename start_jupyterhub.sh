@@ -27,6 +27,7 @@ fi
 # --- Settings ---
 SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 TUTORIAL_REPO_URL=https://github.com/NRLMMD-GEOIPS/geoips_tutorials.git
+TUTORIAL_BRANCH=2026-workshop-updates
 
 # --- Create usernames ---
 usernames=()
@@ -95,7 +96,7 @@ def pre_spawn_hook(spawner):
 
     if not os.path.exists(clone_dir):
         subprocess.run(["git", "clone", repo_url, clone_dir], cwd=home_dir, check=True)
-        subprocess.run(["git", "checkout", "tutorial-devel"], cwd=clone_dir, check=True)
+        subprocess.run(["git", "checkout", "${TUTORIAL_BRANCH}"], cwd=clone_dir, check=True)
         for root, dirs, files in os.walk(clone_dir):
             os.chown(root, uid, gid)
             for d in dirs:
@@ -128,6 +129,7 @@ c.Authenticator.allowed_users = $quoted_users
 
 # Allow additional output
 c.Spawner.args = [
+    "--MappingKernelManager.default_kernel_name=geoips",
     "--ServerApp.iopub_msg_rate_limit=10000",
     "--ServerApp.rate_limit_window=3.0"
 ]
