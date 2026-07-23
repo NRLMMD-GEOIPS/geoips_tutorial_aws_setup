@@ -185,12 +185,15 @@ setup_user_env() {
     local user="$1"
     local user_home="/home/${user}"
     local target="${user_home}/miniconda3"
+    local custom_css_dir="${user_home}/.jupyter/custom"
     echo "Setting up conda environment for ${user}"
 
     # Create target directory and copy env
     mkdir -p "${target}"
     install -m 644 /opt/geoips-env.tgz "${target}/geoips-env.tgz"
     install -m 700 "$SCRIPT_DIR/install_geoips_env.sh" "${user_home}/install_geoips_env.sh"
+    install -d -m 755 -o "${user}" -g "${user}" "${custom_css_dir}"
+    install -m 644 -o "${user}" -g "${user}" "$SCRIPT_DIR/jupyter_custom.css" "${custom_css_dir}/custom.css"
 
     chown -R "${user}:${user}" "${target}"
     chown "${user}:${user}" "${user_home}/install_geoips_env.sh"

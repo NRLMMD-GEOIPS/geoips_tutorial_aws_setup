@@ -130,6 +130,7 @@ c.Authenticator.allowed_users = $quoted_users
 # Allow additional output
 c.Spawner.args = [
     "--MappingKernelManager.default_kernel_name=geoips",
+    "--LabApp.custom_css=True",
     "--ServerApp.iopub_msg_rate_limit=10000",
     "--ServerApp.rate_limit_window=3.0"
 ]
